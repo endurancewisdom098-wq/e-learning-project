@@ -1,0 +1,16 @@
+// Instead of just doing:
+// videoRef.current.play();
+
+// Wrap it in an async function and catch AbortErrors:
+const handlePlayVideo = async () => {
+  if (videoRef.current) {
+    try {
+      await videoRef.current.play();
+    } catch (error) {
+      // Ignore AbortErrors (triggered when play() is interrupted by pause() or re-renders)
+      if (error.name !== 'AbortError') {
+        console.error('Playback error:', error);
+      }
+    }
+  }
+};

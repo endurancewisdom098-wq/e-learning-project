@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client.js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum CourseStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PUBLISHED
+  REJECTED
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+
+model User {
+  id          String       @id @default(uuid())
+  email       String       @unique (map: "email") @db.VarChar(150)
+  password    String       @db.VarChar(255)
+
+  name        String?       @db.VarChar(100)
+  firstName   String?
+  lastName    String?
+
+  role        Role         @default(STUDENT)
+  status      UserStatus   @default(ACTIVE)
+  avatarUrl   String?
+  createdAt   DateTime     @default(now())  @db.Timestamp(0)
+  updatedAt   DateTime     @default(now())  @db.Timestamp(0)
+  
+  
+  // Relations
+  transactions Transaction[]
+  auditLogs    AuditLog[]
+  LoginLogs    LoginLog[]
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?  // Nullable if user email wasn't found
+  email     String
+  ipAddress String
+  userAgent String
+  status    String   // "SUCCESS" or "FAILED"
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  amount      Float
+  type        String   // TUITION_FEE, COURSE_PURCHASE, REFUND
+  status      String   // COMPLETED, PENDING, FAILED
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model SystemMetric {
+  id           String   @id @default(uuid())
+  cpuUsage     Float    // e.g. 24.5%
+  memoryUsage  Float    // e.g. 62.1%
+  storageUsed  Float    // GB
+  storageTotal Float    // GB
+  recordedAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String   // e.g. "USER_SUSPENDED", "COURSE_APPROVED"
+  details   String
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+
+model Student {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String
+  avatarUrl     String?
+  gpa           Float          @default(0.0)
+  enrollments   Enrollment[]
+  submissions   Submission[]
+  attendances   Attendance[]
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+}
+
+model Course {
+  id            String         @id @default(uuid())
+  code          String         @unique // e.g., CS101
+  title         String
+  instructor    String
+  thumbnail     String?
+  enrollments   Enrollment[]
+  assignments   Assignment[]
+  announcements Announcement[]
+  attendances   Attendance[]
+  
+}
+
+model Enrollment {
+  id         String   @id @default(uuid())
+  studentId  String
+  courseId   String
+  progress   Float    @default(0.0) // 0 - 100%
+  status     String   @default("ACTIVE") // ACTIVE, COMPLETED
+  lastModule String?  // e.g., "Module 3: Functions"
+  student    Student  @relation(fields: [studentId], references: [id])
+  course     Course   @relation(fields: [courseId], references: [id])
+}
+
+model Assignment {
+  id          String       @id @default(uuid())
+  courseId    String
+  title       String
+  dueDate     DateTime
+  maxPoints   Int          @default(100)
+  course      Course       @relation(fields: [courseId], references: [id])
+  submissions Submission[]
+}
+
+model Submission {
+  id           String     @id @default(uuid())
+  assignmentId String
+  studentId    String
+  status       String     @default("PENDING") // PENDING, SUBMITTED, GRADED
+  score        Float?
+  submittedAt  DateTime?
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  student      Student    @relation(fields: [studentId], references: [id])
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  studentId String
+  courseId  String
+  date      DateTime
+  status    String   // PRESENT, ABSENT, EXCUSED
+  student   Student  @relation(fields: [studentId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  courseId  String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  course    Course   @relation(fields: [courseId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  studentId String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id])
+}
+
+
+enum Category {
+  REACT
+  JAVASCRIPT
+  DATA_SCIENCE_QUIZ
+  UI_UX_WORKSHOP
+  WEB_DEVELOPMENT
+}
+
+model CourseVideo {
+  id          String   @id @default(cuid())
+  title       String
+  category    Category
+  videoUrl    String
+  createdAt   DateTime @default(now())
+}
